@@ -4,11 +4,11 @@
 #SBATCH --ntasks=8                # MPI ranks for distributed MAPDL
 #SBATCH --cpus-per-task=1
 #SBATCH --hint=nomultithread      # one rank per physical core (no hyperthreads)
-#SBATCH --exclusive               # whole node -> clean timings; drop if queue wait is long
+##SBATCH --exclusive              # whole node -> clean timings, but charges all 94 cores to your allocation
 #SBATCH --mem=16G
 #SBATCH --time=00:30:00
-#SBATCH --partition=compute       # <-- change to your cluster's partition
-##SBATCH --account=krishna     # <-- uncomment if your cluster needs one
+#SBATCH --partition=standard      # UA HPC: standard (uses allocation) or windfall (free, preemptible)
+#SBATCH --account=krishna         # your PI group (check with: va)
 #SBATCH --output=%x_%j.out
 #SBATCH --error=%x_%j.err
 
