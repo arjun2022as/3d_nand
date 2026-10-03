@@ -61,11 +61,14 @@ OUTRES,ERASE
 OUTRES,NSOL,LAST
 OUTRES,STRS,LAST
 
-NSEL,S,LOC,X,0
+! Explicit tolerance: NSEL at 0 defaults to +/-1e-6, which is a tenth of
+! this micron-scale cube and would grab ~7 node layers instead of one face.
+TOL = L/NDIV/100
+NSEL,S,LOC,X,-TOL,TOL
 D,ALL,UX,0
-NSEL,S,LOC,Y,0
+NSEL,S,LOC,Y,-TOL,TOL
 D,ALL,UY,0
-NSEL,S,LOC,Z,0
+NSEL,S,LOC,Z,-TOL,TOL
 D,ALL,UZ,0
 ALLSEL
 
