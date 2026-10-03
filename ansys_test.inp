@@ -6,17 +6,31 @@
 !     UX_max  = alpha * dT * L   (analytical)
 !     S_eqv   ~ 0
 !  The run passes if the FE/analytical error is ~0 %.
-!  Increase NDIV to make the job heavier (NDIV^3 elements, ~3*NDIV^3 DOF).
+!
+!  Command-line overrides (defaults below are used if not given):
+!     -NDIV   n   elements per edge (NDIV^3 elements, ~3*NDIV^3 DOF)
+!     -SOLVER 1   sparse direct solver
+!     -SOLVER 2   PCG iterative solver (usually faster for bulky 3D solids)
 ! =====================================================================
 /BATCH
 /TITLE, HPC smoke test - free thermal expansion of Si cube
 
-! ---------------- parameters ----------------
-NDIV  = 60          ! elements per edge (60 -> 216k elements, ~670k DOF)
+! ---------------- parameters (keep command-line values if set) ----------------
+*GET,_PT,PARM,NDIV,TYPE
+*IF,_PT,EQ,-1,THEN
+  NDIV = 60         ! 60 -> 216k elements, ~670k DOF
+*ENDIF
+*GET,_PT,PARM,SOLVER,TYPE
+*IF,_PT,EQ,-1,THEN
+  SOLVER = 2
+*ENDIF
+
 L     = 10e-6       ! cube edge length [m]
 T0    = 20          ! reference temperature [C]
 DT    = 100         ! temperature rise [K]
 ALPHA = 2.6e-6      ! CTE of Si [1/K]
+
+/NOPR               ! don't echo every command to the output file
 
 ! ---------------- preprocessing ----------------
 /PREP7
@@ -35,7 +49,17 @@ FINISH
 ! ---------------- solution ----------------
 /SOLU
 ANTYPE,STATIC
-EQSLV,SPARSE
+
+*IF,SOLVER,EQ,2,THEN
+  EQSLV,PCG,1e-8    ! iterative: low memory, scales well on bulky 3D meshes
+*ELSE
+  EQSLV,SPARSE      ! direct: robust, more memory and I/O
+*ENDIF
+
+! Only write what post-processing needs -> smaller, faster result file
+OUTRES,ERASE
+OUTRES,NSOL,LAST
+OUTRES,STRS,LAST
 
 NSEL,S,LOC,X,0
 D,ALL,UX,0
@@ -51,6 +75,7 @@ SOLVE
 FINISH
 
 ! ---------------- postprocessing ----------------
+/GOPR
 /POST1
 SET,LAST
 *GET,NNODE,NODE,0,COUNT
@@ -65,6 +90,8 @@ UXEXACT = ALPHA*DT*L
 ERR     = ABS(UXMAX-UXEXACT)/UXEXACT*100
 
 *CFOPEN,results,txt
+*VWRITE,NDIV,SOLVER
+('NDIV: ',F6.0,'   Solver (1=sparse, 2=PCG): ',F3.0)
 *VWRITE,NNODE,NELEM
 ('Nodes: ',F12.0,'   Elements: ',F12.0)
 *VWRITE,UXMAX,UXEXACT,ERR
