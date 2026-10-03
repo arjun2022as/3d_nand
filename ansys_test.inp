@@ -1,0 +1,77 @@
+! =====================================================================
+!  ANSYS MAPDL HPC smoke test
+!  Free thermal expansion of a silicon cube (SOLID185, mapped hex mesh).
+!
+!  Symmetry BCs on three faces -> the cube expands freely, so:
+!     UX_max  = alpha * dT * L   (analytical)
+!     S_eqv   ~ 0
+!  The run passes if the FE/analytical error is ~0 %.
+!  Increase NDIV to make the job heavier (NDIV^3 elements, ~3*NDIV^3 DOF).
+! =====================================================================
+/BATCH
+/TITLE, HPC smoke test - free thermal expansion of Si cube
+
+! ---------------- parameters ----------------
+NDIV  = 60          ! elements per edge (60 -> 216k elements, ~670k DOF)
+L     = 10e-6       ! cube edge length [m]
+T0    = 20          ! reference temperature [C]
+DT    = 100         ! temperature rise [K]
+ALPHA = 2.6e-6      ! CTE of Si [1/K]
+
+! ---------------- preprocessing ----------------
+/PREP7
+ET,1,SOLID185
+MP,EX,1,130e9       ! Young's modulus of Si [Pa]
+MP,PRXY,1,0.28      ! Poisson's ratio
+MP,ALPX,1,ALPHA
+
+BLOCK,0,L,0,L,0,L
+ESIZE,,NDIV
+MSHAPE,0,3D
+MSHKEY,1
+VMESH,ALL
+FINISH
+
+! ---------------- solution ----------------
+/SOLU
+ANTYPE,STATIC
+EQSLV,SPARSE
+
+NSEL,S,LOC,X,0
+D,ALL,UX,0
+NSEL,S,LOC,Y,0
+D,ALL,UY,0
+NSEL,S,LOC,Z,0
+D,ALL,UZ,0
+ALLSEL
+
+TREF,T0
+BFUNIF,TEMP,T0+DT
+SOLVE
+FINISH
+
+! ---------------- postprocessing ----------------
+/POST1
+SET,LAST
+*GET,NNODE,NODE,0,COUNT
+*GET,NELEM,ELEM,0,COUNT
+
+NSORT,U,X
+*GET,UXMAX,SORT,,MAX
+NSORT,S,EQV
+*GET,SEQVMAX,SORT,,MAX
+
+UXEXACT = ALPHA*DT*L
+ERR     = ABS(UXMAX-UXEXACT)/UXEXACT*100
+
+*CFOPEN,results,txt
+*VWRITE,NNODE,NELEM
+('Nodes: ',F12.0,'   Elements: ',F12.0)
+*VWRITE,UXMAX,UXEXACT,ERR
+('UX max FE = ',E14.6,' m   UX exact = ',E14.6,' m   error = ',F10.6,' %')
+*VWRITE,SEQVMAX
+('Max von Mises (should be ~0) = ',E14.6,' Pa')
+*CFCLOSE
+FINISH
+
+/EXIT,NOSAVE
