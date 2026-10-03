@@ -8,7 +8,7 @@
 # Keep CORES <= cores per node (the job script requests --nodes=1).
 
 NDIV=${NDIV:-80}
-CORES="1 2 4 8 16 32"
+CORES="1 2 4 8 16 32 64"
 SOLVERS="1 2"
 
 for s in $SOLVERS; do
