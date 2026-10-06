@@ -1,11 +1,24 @@
 #!/bin/bash
-# One-time setup on a Puma LOGIN node (needs internet for pip):
-#     bash setup_env.sh
+# One-time setup. UA HPC login nodes have no `module` command, so run this
+# inside an interactive session on a compute node:
+#     interactive -a krishna -t 01:00:00
+#     cd ~/3d_nand/ansys_busnaina && bash setup_env.sh
 # Creates ~/venvs/pyfluent241 with PyFluent (<0.38 = last series supporting Fluent 2024 R1).
 set -euo pipefail
 
 ANSYS_MODULE=${ANSYS_MODULE:-ansys/2024R1}
 VENV=${VENV:-$HOME/venvs/pyfluent241}
+
+if ! type module >/dev/null 2>&1; then
+    for f in /etc/profile.d/modules.sh /usr/share/lmod/lmod/init/bash; do
+        [[ -f "$f" ]] && source "$f" && break
+    done
+fi
+if ! type module >/dev/null 2>&1; then
+    echo "ERROR: 'module' is not available here (login node?)." >&2
+    echo "Start a compute-node session first:  interactive -a krishna -t 01:00:00" >&2
+    exit 1
+fi
 
 module purge
 module load "$ANSYS_MODULE" || { echo "module $ANSYS_MODULE not found; pick one from: module avail ansys" >&2; exit 1; }

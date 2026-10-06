@@ -32,9 +32,14 @@ Reproduces Lin, Busnaina & Suni, *Cleaning of High Aspect Ratio Submicron Trench
 ## Run on Puma
 
 ```bash
+# once: login nodes have no `module`, so do the setup on a compute node
+interactive -a krishna -t 01:00:00
 cd ~/3d_nand/ansys_busnaina
 module avail ansys                     # if not "ansys/2024R1": export ANSYS_MODULE=<name>
-bash setup_env.sh                      # once, on the login node
+bash setup_env.sh
+exit                                   # back to the login node
+
+cd ~/3d_nand/ansys_busnaina
 
 bash submit_cases.sh fig4_f2000k --setup-only     # 1) quick test: builds case, 5 time steps
 cat logs/fig4_f2000k_*.out                        #    check for "ok" lines and C/C0 values
