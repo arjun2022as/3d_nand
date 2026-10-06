@@ -176,20 +176,22 @@ def setup(solver, msh, p):
              lambda: solver.tui.define.models.species.species_transport("yes", "mixture-template"))
 
     # Fluent 24.1 has no "constant" density for a mixture: give every species
-    # material constant water properties and mix them volume-weighted (= RHO exactly).
-    fluids = s.setup.materials.fluid
-    for name in fluids.get_object_names():
-        fm = fluids[name]
-        try:
-            setv(fm.density.option, "constant")
-            setv(fm.density.value, RHO)
-            setv(fm.viscosity.option, "constant")
-            setv(fm.viscosity.value, MU)
-            log(f"fluid material {name}: rho={RHO}, mu={MU}")
-        except Exception as e:  # noqa: BLE001
-            log(f"fluid material {name}: not changed ({e})")
-
+    # constant water properties and mix them volume-weighted (= RHO exactly).
     mix = s.setup.materials.mixture["mixture-template"]
+    vs = mix.species.volumetric_species
+    species = list(vs.get_object_names())
+    log("mixture species (solved in this order):", species)
+    global TRACER
+    TRACER = species[0]   # first species = species-0, always solved (the last is the bulk)
+    log("contaminant tracer species:", TRACER)
+    for name in species:
+        sp_ = vs[name]
+        setv(sp_.density.option, option(sp_.density.option, "constant"))
+        setv(sp_.density.value, RHO)
+        setv(sp_.viscosity.option, option(sp_.viscosity.option, "constant"))
+        setv(sp_.viscosity.value, MU)
+        log(f"species {name}: density={sp_.density()}, viscosity={sp_.viscosity()}")
+
     first_ok("density",
              lambda: setv(mix.density.option, option(mix.density.option, "constant",
                                                      "volume-weighted-mixing-law")))
@@ -239,6 +241,12 @@ def setup(solver, msh, p):
     setv(r.report_type, "volume-average")
     setv(r.field, TRACER)
     setv(r.cell_zones, ["cavity"])
+    # sanity check that the mixture really is water
+    vol["rho_avg"] = {}
+    r = vol["rho_avg"]
+    setv(r.report_type, "volume-average")
+    setv(r.field, "density")
+    setv(r.cell_zones, ["channel", "cavity"])
 
     try:
         s.solution.monitor.report_files["c_cavity_rfile"] = {
@@ -252,9 +260,9 @@ def setup(solver, msh, p):
     setv(tc.time_step_size, p["dt"])
 
 
-def report(solver):
+def report(solver, name="c_cavity"):
     s = getattr(solver, "settings", solver)
-    return scalar(s.solution.report_definitions.compute(report_defs=["c_cavity"]))
+    return scalar(s.solution.report_definitions.compute(report_defs=[name]))
 
 
 def initialize(solver):
@@ -263,27 +271,26 @@ def initialize(solver):
     first_ok("standard initialization",
              lambda: ini.standard_initialize(),
              lambda: ini.initialize())
+    rho = report(solver, "rho_avg")
+    log(f"mixture density check: {rho} kg/m3")
+    if abs(rho - RHO) > 1e-3 * RHO:
+        raise RuntimeError(f"mixture density is {rho}, expected {RHO}: species properties not applied")
     c = report(solver)
     if abs(c) > 1e-12:
         raise RuntimeError(f"cavity concentration after initialization is {c}, expected 0")
 
-    attempts = [
-        lambda: ini.patch.calculate_patch(cell_zones=["cavity"], variable=TRACER, value=1.0),
-        lambda: ini.patch.calculate_patch(domain="mixture", cell_zones=["cavity"],
-                                          variable=TRACER, value=1.0),
-        lambda: solver.tui.solve.patch("cavity", "()", TRACER, "no", "1"),
-        lambda: solver.tui.solve.patch("cavity", "()", TRACER, "1"),
-    ]
-    for k, fn in enumerate(attempts):
+    # patch variables are named species-0, species-1 (solve order), not by species name
+    for var in ("species-0", "species-1", TRACER):
         try:
-            fn()
+            ini.patch.calculate_patch(cell_zones=["cavity"], variable=var, value=1.0)
         except Exception as e:  # noqa: BLE001
-            log(f"patch attempt {k}: {type(e).__name__}: {e}")
+            log(f"patch {var}: {type(e).__name__}: {e}")
             continue
         c = report(solver)
-        log(f"patch attempt {k}: cavity concentration = {c}")
+        log(f"patch {var}: cavity {TRACER} = {c}")
         if abs(c - 1.0) < 1e-6:
             return
+        ini.patch.calculate_patch(cell_zones=["cavity"], variable=var, value=0.0)  # undo
     raise RuntimeError("could not patch contaminant into the cavity; see attempts above")
 
 
