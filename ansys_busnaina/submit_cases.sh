@@ -11,7 +11,8 @@ PATTERN=${1:?usage: bash submit_cases.sh <pattern> [run_case.py args]}
 shift
 
 VENV=${VENV:-$HOME/venvs/pyfluent241}
-if [[ ! -x "$VENV/bin/python" ]]; then
+# check activate, not bin/python: python links into /opt/ohpc/pub/apps, which login nodes don't mount
+if [[ ! -f "$VENV/bin/activate" ]]; then
     echo "ERROR: $VENV not found. Run setup_env.sh in an interactive session first (see README)." >&2
     exit 1
 fi
