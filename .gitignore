@@ -1,1 +1,19 @@
 git_cmd.ps1
+
+# SLURM / ANSYS job outputs
+*.out
+*.err
+*.rst
+*.log
+results_*.txt
+results.txt
+scaling.csv
+
+# Fluent runs (ansys_busnaina)
+ansys_busnaina/results/
+ansys_busnaina/logs/*
+!ansys_busnaina/logs/.gitkeep
+*.h5
+*.msh
+*.trn
+__pycache__/
