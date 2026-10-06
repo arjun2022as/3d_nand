@@ -184,23 +184,25 @@ def setup(solver, msh, p):
     global TRACER
     TRACER = species[0]   # first species = species-0, always solved (the last is the bulk)
     log("contaminant tracer species:", TRACER)
-    for name in species:
-        sp_ = vs[name]
-        setv(sp_.density.option, option(sp_.density.option, "constant"))
-        setv(sp_.density.value, RHO)
-        setv(sp_.viscosity.option, option(sp_.viscosity.option, "constant"))
-        setv(sp_.viscosity.value, MU)
-        log(f"species {name}: density={sp_.density()}, viscosity={sp_.viscosity()}")
-
-    first_ok("density",
-             lambda: setv(mix.density.option, option(mix.density.option, "constant",
-                                                     "volume-weighted-mixing-law")))
-    first_ok("viscosity",
-             lambda: setv(mix.viscosity.option, option(mix.viscosity.option, "constant",
-                                                       "mass-weighted-mixing-law")),
-             )
+    # Mixture rules first: per-species properties are inactive until the mixture
+    # uses a mixing law for that property.
+    setv(mix.density.option, option(mix.density.option, "constant", "volume-weighted-mixing-law"))
+    setv(mix.viscosity.option, option(mix.viscosity.option, "constant", "mass-weighted-mixing-law"))
+    log("mixture density rule:", mix.density.option(), "| viscosity rule:", mix.viscosity.option())
+    if mix.density.option() == "constant":
+        setv(mix.density.value, RHO)
     if mix.viscosity.option() == "constant":
         setv(mix.viscosity.value, MU)
+
+    for name in species:
+        sp_ = vs[name]
+        for prop, val in (("density", RHO), ("viscosity", MU)):
+            obj = getattr(sp_, prop)
+            if not obj.is_active():
+                continue   # mixture uses a constant for this property
+            setv(obj.option, option(obj.option, "constant"))
+            setv(obj.value, val)
+            log(f"species {name}: {prop} = {obj()}")
     try:
         setv(s.setup.models.energy.enabled, False)
         log("energy equation: off (isothermal)")
