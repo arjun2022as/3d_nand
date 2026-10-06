@@ -6,7 +6,7 @@
 # Creates ~/venvs/pyfluent241 with PyFluent (<0.38 = last series supporting Fluent 2024 R1).
 set -euo pipefail
 
-ANSYS_MODULE=${ANSYS_MODULE:-ansys/2024R1}
+ANSYS_MODULE=${ANSYS_MODULE:-ansys/24.1}
 VENV=${VENV:-$HOME/venvs/pyfluent241}
 
 if ! type module >/dev/null 2>&1; then
@@ -28,18 +28,22 @@ AWP_ROOT241=${AWP_ROOT241:-$(dirname "$(dirname "$(dirname "$FLUENT_EXE")")")}
 echo "Fluent      : $FLUENT_EXE"
 echo "AWP_ROOT241 : $AWP_ROOT241"
 
-# Prefer the Python that ships with Ansys 2024 R1, else a cluster Python >= 3.10
-PY="$AWP_ROOT241/commonfiles/CPython/3_10/linx64/Release/python/bin/python3"
-if [[ ! -x "$PY" ]]; then
-    for m in python/3.11 python/3.10 python/3.12; do
-        if module load "$m" 2>/dev/null; then PY=$(command -v python3); break; fi
-    done
-fi
+# Use the Python 3.10 that ships with Ansys 2024 R1 (needs its lib dir on LD_LIBRARY_PATH)
+PYHOME="$AWP_ROOT241/commonfiles/CPython/3_10/linx64/Release/python"
+PY="$PYHOME/bin/python3"
+export LD_LIBRARY_PATH="$PYHOME/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 "$PY" -c 'import sys; assert sys.version_info >= (3, 10), sys.version' \
     || { echo "need Python >= 3.10 (found $PY)" >&2; exit 1; }
 echo "Python      : $PY ($("$PY" --version))"
 
+rm -rf "$VENV"
 "$PY" -m venv "$VENV"
+# make every `source $VENV/bin/activate` (incl. batch jobs) find libpython3.10.so
+cat >> "$VENV/bin/activate" <<EOF
+
+# added by setup_env.sh: Ansys bundled Python shared library
+export LD_LIBRARY_PATH="$PYHOME/lib\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
+EOF
 "$VENV/bin/pip" install --upgrade pip
 "$VENV/bin/pip" install "ansys-fluent-core>=0.26,<0.38" matplotlib
 "$VENV/bin/python" -c "import ansys.fluent.core as p; print('PyFluent', p.__version__)"

@@ -35,7 +35,7 @@ Reproduces Lin, Busnaina & Suni, *Cleaning of High Aspect Ratio Submicron Trench
 # once: login nodes have no `module`, so do the setup on a compute node
 interactive -a krishna -t 01:00:00
 cd ~/3d_nand/ansys_busnaina
-module avail ansys                     # if not "ansys/2024R1": export ANSYS_MODULE=<name>
+module avail ansys                     # if not "ansys/24.1": export ANSYS_MODULE=<name>
 bash setup_env.sh
 exit                                   # back to the login node
 

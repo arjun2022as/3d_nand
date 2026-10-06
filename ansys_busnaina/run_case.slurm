@@ -15,12 +15,11 @@ set -euo pipefail
 
 CASE=${1:?usage: sbatch run_case.slurm <case> [args]}
 shift
-ANSYS_MODULE=${ANSYS_MODULE:-ansys/2024R1}
+ANSYS_MODULE=${ANSYS_MODULE:-ansys/24.1}
 VENV=${VENV:-$HOME/venvs/pyfluent241}
 
 module purge
 module load "$ANSYS_MODULE"
-module load python/3.11 2>/dev/null || true   # only needed if the venv was built on a module Python
 
 FLUENT_EXE=$(readlink -f "$(command -v fluent)")
 export AWP_ROOT241=${AWP_ROOT241:-$(dirname "$(dirname "$(dirname "$FLUENT_EXE")")")}
