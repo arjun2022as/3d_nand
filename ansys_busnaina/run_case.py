@@ -61,6 +61,15 @@ def setv(obj, value):
     return obj
 
 
+def option(obj, *candidates):
+    """First candidate that this option object allows (raises with the allowed list)."""
+    allowed = list(obj.allowed_values())
+    for c in candidates:
+        if c in allowed:
+            return c
+    raise ValueError(f"none of {candidates} allowed; allowed: {allowed}")
+
+
 def first_ok(label, *attempts):
     """Run callables in order until one succeeds; raise with all errors otherwise."""
     errors = []
@@ -122,6 +131,11 @@ def plan(row, steps_per_period, min_steps, cfl):
 def launch(procs, workdir):
     import ansys.fluent.core as pyfluent
     log(f"PyFluent {pyfluent.__version__}, launching Fluent 2D double precision on {procs} cores")
+    # Inside a SLURM job PyFluent builds a host list and Fluent then spawns its
+    # processes over ssh to the same node ("Host key verification failed").
+    # Hiding SLURM variables makes it start all processes locally instead.
+    for k in [k for k in os.environ if k.startswith("SLURM_")]:
+        os.environ.pop(k)
     return pyfluent.launch_fluent(
         product_version=pyfluent.FluentVersion.v241,
         dimension=pyfluent.Dimension.TWO,
@@ -161,11 +175,35 @@ def setup(solver, msh, p):
                       setv(sp.model.material, "mixture-template")),
              lambda: solver.tui.define.models.species.species_transport("yes", "mixture-template"))
 
+    # Fluent 24.1 has no "constant" density for a mixture: give every species
+    # material constant water properties and mix them volume-weighted (= RHO exactly).
+    fluids = s.setup.materials.fluid
+    for name in fluids.get_object_names():
+        fm = fluids[name]
+        try:
+            setv(fm.density.option, "constant")
+            setv(fm.density.value, RHO)
+            setv(fm.viscosity.option, "constant")
+            setv(fm.viscosity.value, MU)
+            log(f"fluid material {name}: rho={RHO}, mu={MU}")
+        except Exception as e:  # noqa: BLE001
+            log(f"fluid material {name}: not changed ({e})")
+
     mix = s.setup.materials.mixture["mixture-template"]
     first_ok("density",
-             lambda: (setv(mix.density.option, "constant"), setv(mix.density.value, RHO)))
+             lambda: setv(mix.density.option, option(mix.density.option, "constant",
+                                                     "volume-weighted-mixing-law")))
     first_ok("viscosity",
-             lambda: (setv(mix.viscosity.option, "constant"), setv(mix.viscosity.value, MU)))
+             lambda: setv(mix.viscosity.option, option(mix.viscosity.option, "constant",
+                                                       "mass-weighted-mixing-law")),
+             )
+    if mix.viscosity.option() == "constant":
+        setv(mix.viscosity.value, MU)
+    try:
+        setv(s.setup.models.energy.enabled, False)
+        log("energy equation: off (isothermal)")
+    except Exception as e:  # noqa: BLE001
+        log("energy equation left on:", e)
     md = mix.mass_diffusivity
     first_ok("mass diffusivity",
              lambda: (setv(md.option, "constant-dilute-appx"), setv(pick(md, "value"), DIFF)),
