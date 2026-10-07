@@ -42,7 +42,8 @@ def fig2(rows):
             ax.plot(*h, label=r["figure_note"].replace("Fig 2 ", ""))
     ax.set(xlabel="Time (s)", ylabel="C / C0 in cavity",
            title="Fig. 2: W = 1 mm, u_avg = 15 cm/s", ylim=(0, 1.05))
-    ax.legend(fontsize=8)
+    if ax.lines:
+        ax.legend(fontsize=8)
     return fig
 
 
@@ -59,7 +60,8 @@ def fig3(rows):
         ax.semilogx(*zip(*pts), "o-", label=label)
     ax.set(xlabel="St = W f / Up", ylabel="Cleaning efficiency (%)",
            title="Fig. 3: effect of Strouhal number", ylim=(0, 100))
-    ax.legend(fontsize=8)
+    if ax.lines:
+        ax.legend(fontsize=8)
     return fig
 
 
@@ -67,16 +69,39 @@ def fig4(rows):
     fig, ax = plt.subplots(figsize=(6, 4.5))
     for r in rows:
         if r["case"].startswith("fig4") and (h := history(r["case"])):
-            ax.semilogy(*h, label=r["figure_note"].replace("Fig 4 W=D=1um ", f"f={float(r['freq_Hz'])/1e3:g} kHz, "))
-    ax.set(xlabel="Time (s)", ylabel="C / C0 in cavity",
+            ax.semilogy([t * 1e3 for t in h[0]], h[1], label=r["figure_note"].replace("Fig 4 W=D=1um ", f"f={float(r['freq_Hz'])/1e3:g} kHz, "))
+    ax.set(xlabel="Time (ms)", ylabel="C / C0 in cavity",
            title="Fig. 4: W = D = 1 um, u_avg = 15 cm/s")
-    ax.legend(fontsize=8)
+    if ax.lines:
+        ax.legend(fontsize=8)
+    return fig
+
+
+def conv(rows):
+    """Mesh/time-step convergence: conv_<f>_n80 overlaid on fig4_<f> (40 cells/W)."""
+    fig, ax = plt.subplots(figsize=(6, 4.5))
+    for r in rows:
+        m = re.match(r"conv_(f\w+?)_n(\d+)$", r["case"])
+        if not m:
+            continue
+        base, fine = history(f"fig4_{m.group(1)}"), history(r["case"])
+        if not (base and fine):
+            continue
+        line, = ax.semilogy([t * 1e3 for t in base[0]], base[1], label=f"{m.group(1)}: 40 cells/W")
+        ax.semilogy([t * 1e3 for t in fine[0]], fine[1], "--", color=line.get_color(), label=f"{m.group(1)}: {m.group(2)} cells/W")
+        diff = 100 * abs(fine[1][-1] - base[1][-1]) / base[1][-1]
+        print(f"{m.group(1)}: final C/C0 40 cells/W = {base[1][-1]:.4f}, "
+              f"{m.group(2)} cells/W = {fine[1][-1]:.4f}  ({diff:.1f} % difference)")
+    ax.set(xlabel="Time (ms)", ylabel="C / C0 in cavity",
+           title="Convergence: solid = normal, dashed = 2x finer mesh and time step")
+    if ax.lines:
+        ax.legend(fontsize=8)
     return fig
 
 
 def main():
     rows = cases()
-    for name, fn in (("fig2", fig2), ("fig3", fig3), ("fig4", fig4)):
+    for name, fn in (("fig2", fig2), ("fig3", fig3), ("fig4", fig4), ("conv", conv)):
         fig = fn(rows)
         if fig.axes[0].lines:
             fig.tight_layout()

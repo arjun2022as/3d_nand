@@ -63,3 +63,22 @@ Preview the time-step plan without Fluent: `python run_case.py --case fig2_ar5_o
 - `summary.json`: parameters, time step, final efficiency
 
 To open in Fluent 2024 R1 on your PC: download a `.cas.h5` and its `.dat.h5`, then use **File → Read → Case & Data**. In Workbench, add a Fluent system and import the case. The contaminant field is **Species → Mass fraction of h2o** (the mixture template's `h2o` species is used as the tracer, with its properties set to water).
+
+## Checking runs
+
+```bash
+bash check_runs.sh          # every case: DONE / PARTIAL / BROKEN / FAILED / RUNNING, steps, efficiency
+bash check_runs.sh fig4     # only Fig. 4
+```
+
+`PARTIAL` or `BROKEN` cases need `bash submit_cases.sh <case> --force` (finished cases refuse to rerun without `--force`).
+
+## Convergence check
+
+`conv_f20k_n80` and `conv_f200k_n80` repeat `fig4_f20k` / `fig4_f200k` with 80 instead of 40 cells across the trench; the time step halves automatically (it is set by the cell size), so both space and time are refined.
+
+```bash
+bash submit_cases.sh conv   # 2 jobs, ~7-8 h each
+```
+
+`plot_results.py` then writes `results/conv.png` (solid = normal, dashed = fine) and prints the difference in final C/C0. Under ~5 % means the 40 cells/W results are mesh-independent.
