@@ -24,6 +24,9 @@ def history(case):
         for row in csv.DictReader(fh):
             t.append(float(row["time_s"]))
             c.append(float(row["c_cavity"]))
+    if len(t) < 2:
+        print(f"{case}: history.csv has no data (run incomplete or overwritten)")
+        return None
     return t, c
 
 

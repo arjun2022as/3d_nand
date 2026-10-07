@@ -329,6 +329,7 @@ def main():
     ap.add_argument("--snapshots", type=int, default=5, help="data files saved during the run")
     ap.add_argument("--setup-only", action="store_true", help="build the case, run 5 steps, stop")
     ap.add_argument("--plan-only", action="store_true", help="print time step plan and exit")
+    ap.add_argument("--force", action="store_true", help="overwrite a finished run of this case")
     a = ap.parse_args()
 
     row = load_case(a.case)
@@ -340,6 +341,9 @@ def main():
     # test runs get their own folder so they never overwrite real results
     default_dir = f"{a.case}_test" if a.setup_only else a.case
     out = Path(a.out or HERE / "results" / default_dir).resolve()
+    if (out / "summary.json").exists() and not a.force:
+        raise SystemExit(f"{out} already has a finished run (summary.json). "
+                         "Use --force to overwrite it.")
     out.mkdir(parents=True, exist_ok=True)
     msh = out / f"{a.case}.msh"
     info = make_trench_mesh.main(["--W", str(p["W"]), "--AR", str(p["AR"]),
