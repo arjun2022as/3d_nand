@@ -337,7 +337,9 @@ def main():
     if a.plan_only:
         return
 
-    out = Path(a.out or HERE / "results" / a.case).resolve()
+    # test runs get their own folder so they never overwrite real results
+    default_dir = f"{a.case}_test" if a.setup_only else a.case
+    out = Path(a.out or HERE / "results" / default_dir).resolve()
     out.mkdir(parents=True, exist_ok=True)
     msh = out / f"{a.case}.msh"
     info = make_trench_mesh.main(["--W", str(p["W"]), "--AR", str(p["AR"]),
