@@ -83,3 +83,16 @@ bash submit_cases.sh "n40dt|n80mesh|n40tight"   # 20 kHz: time step only, mesh o
 ```
 
 `plot_results.py` then writes `results/conv.png` (solid = normal, dashed = fine) and prints the difference in final C/C0. Under ~5 % means the 40 cells/W results are mesh-independent.
+
+## Mesh study (20 kHz)
+
+The diagnostic runs showed the mesh is the main error source (40 -> 80 cells/W changed C/C0 by 63 %),
+the default residuals (1e-3) a secondary one (38 %), the time step a minor one.
+`conv_f20k_n{40,80,120,160}tight` use residuals 1e-6 and the same time step (5.3e-8 s):
+
+```bash
+bash submit_cases.sh "n80tight|n120tight|n160tight"   # n40tight already done; ~4-8 h, ~10-20 h, ~20-40 h
+```
+
+`plot_results.py` writes `results/meshstudy.png` and prints the change between mesh levels, the observed
+order of convergence and the extrapolated mesh-independent C/C0.

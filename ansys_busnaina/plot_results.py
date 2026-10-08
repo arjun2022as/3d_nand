@@ -82,7 +82,7 @@ def conv(rows):
     fig, ax = plt.subplots(figsize=(6.5, 4.8))
     colors = {}
     for r in rows:
-        if not r["case"].startswith("conv_"):
+        if not r["case"].startswith("conv_") or "tight" in r["case"] and "n40" not in r["case"]:
             continue
         freq = r["case"].split("_")[1]
         base, fine = history(f"fig4_{freq}"), history(r["case"])
@@ -104,9 +104,54 @@ def conv(rows):
     return fig
 
 
+def meshstudy(rows):
+    """Final C/C0 vs cells across the trench for conv_f20k_n<N>tight, with Richardson extrapolation."""
+    pts = []
+    for r in rows:
+        m = re.match(r"conv_f20k_n(\d+)tight$", r["case"])
+        if m and (h := history(r["case"])):
+            pts.append((int(m.group(1)), h[1][-1]))
+    pts.sort()
+    fig, ax = plt.subplots(figsize=(6, 4.5))
+    if not pts:
+        return fig
+    n, c = zip(*pts)
+    ax.plot(n, c, "o-", label="20 kHz, residuals 1e-6")
+    for ni, ci in pts:
+        print(f"mesh study: {ni:4d} cells/W  final C/C0 = {ci:.5f}")
+    for i in range(1, len(pts)):
+        print(f"            {n[i-1]} -> {n[i]} cells/W: change {100 * abs(c[i] - c[i-1]) / c[i]:.1f} %")
+    if len(pts) >= 3:
+        # fit C(n) = C_inf + K * n**-p through the three finest meshes (p by bisection)
+        (n1, c1), (n2, c2), (n3, c3) = pts[-3:]
+
+        def ratio(p):
+            return (n2 ** -p - n1 ** -p) / (n3 ** -p - n2 ** -p)
+
+        target = (c2 - c1) / (c3 - c2) if c3 != c2 else float("inf")
+        lo, hi = 0.05, 10.0
+        if (ratio(lo) - target) * (ratio(hi) - target) < 0:
+            for _ in range(200):
+                mid = 0.5 * (lo + hi)
+                lo, hi = (mid, hi) if (ratio(lo) - target) * (ratio(mid) - target) > 0 else (lo, mid)
+            p = 0.5 * (lo + hi)
+            K = (c3 - c2) / (n3 ** -p - n2 ** -p)
+            c_ext = c3 - K * n3 ** -p
+            ax.axhline(c_ext, ls=":", color="gray", label=f"extrapolated ({c_ext:.4f})")
+            print(f"            observed order p = {p:.2f}, extrapolated C/C0 = {c_ext:.5f}, "
+                  f"finest-mesh error = {100 * abs(c3 - c_ext) / c_ext:.1f} %")
+        else:
+            print("            not converging monotonically: no extrapolation")
+    ax.set(xlabel="Cells across trench width", ylabel="Final C/C0 (t = 0.4 ms)",
+           title="Mesh study: W = D = 1 um, f = 20 kHz")
+    ax.legend(fontsize=8)
+    return fig
+
+
 def main():
     rows = cases()
-    for name, fn in (("fig2", fig2), ("fig3", fig3), ("fig4", fig4), ("conv", conv)):
+    for name, fn in (("fig2", fig2), ("fig3", fig3), ("fig4", fig4), ("conv", conv),
+                     ("meshstudy", meshstudy)):
         fig = fn(rows)
         if fig.axes[0].lines:
             fig.tight_layout()

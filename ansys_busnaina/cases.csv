@@ -29,3 +29,6 @@ conv_f200k_n80,1e-6,1,osc,0.15,200000,4e-4,80,24:00:00,Convergence: fig4_f200k w
 conv_f20k_n40dt,1e-6,1,osc,0.15,20000,4e-4,40,08:00:00,Convergence: fig4_f20k with time step halved only,0.5,
 conv_f20k_n80mesh,1e-6,1,osc,0.15,20000,4e-4,80,24:00:00,Convergence: fig4_f20k with mesh 2x finer only,2.0,
 conv_f20k_n40tight,1e-6,1,osc,0.15,20000,4e-4,40,24:00:00,Convergence: fig4_f20k with residuals 1e-6,,1e-6
+conv_f20k_n80tight,1e-6,1,osc,0.15,20000,4e-4,80,24:00:00,Mesh study: fig4_f20k 80 cells/W residuals 1e-6,2.0,1e-6
+conv_f20k_n120tight,1e-6,1,osc,0.15,20000,4e-4,120,48:00:00,Mesh study: fig4_f20k 120 cells/W residuals 1e-6,3.0,1e-6
+conv_f20k_n160tight,1e-6,1,osc,0.15,20000,4e-4,160,72:00:00,Mesh study: fig4_f20k 160 cells/W residuals 1e-6,4.0,1e-6
