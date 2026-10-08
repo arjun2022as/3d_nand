@@ -1,4 +1,4 @@
-case,W_m,AR,mode,u_avg_m_s,freq_Hz,t_end_s,n_per_w,walltime,figure_note
+case,W_m,AR,mode,u_avg_m_s,freq_Hz,t_end_s,n_per_w,walltime,figure_note,cfl,res_tol
 fig2_ar1_steady,1e-3,1,steady,0.15,0,1.0,40,08:00:00,Fig 2 AR=1:1 steady flow
 fig2_ar5_steady,1e-3,5,steady,0.15,0,1.0,40,08:00:00,Fig 2 AR=5:1 steady flow
 fig2_ar1_osc20k,1e-3,1,osc,0.15,20000,1.0,40,72:00:00,Fig 2 AR=1:1 oscillating 20 kHz
@@ -24,5 +24,8 @@ fig3_w100um_ar5_st0.01,1e-4,5,osc,0.15,47.12,0.1,40,08:00:00,Fig 3 AR=5 D=500um 
 fig3_w100um_ar5_st0.133,1e-4,5,osc,0.15,626.7,0.1,40,08:00:00,Fig 3 AR=5 D=500um W=100um t=0.1s
 fig3_w100um_ar5_st1,1e-4,5,osc,0.15,4712,0.1,40,08:00:00,Fig 3 AR=5 D=500um W=100um t=0.1s
 fig3_w100um_ar5_st10,1e-4,5,osc,0.15,47120,0.1,40,24:00:00,Fig 3 AR=5 D=500um W=100um t=0.1s
-conv_f20k_n80,1e-6,1,osc,0.15,20000,4e-4,80,24:00:00,Convergence: fig4_f20k with 2x finer mesh and time step
-conv_f200k_n80,1e-6,1,osc,0.15,200000,4e-4,80,24:00:00,Convergence: fig4_f200k with 2x finer mesh and time step
+conv_f20k_n80,1e-6,1,osc,0.15,20000,4e-4,80,24:00:00,Convergence: fig4_f20k with mesh and time step 2x finer
+conv_f200k_n80,1e-6,1,osc,0.15,200000,4e-4,80,24:00:00,Convergence: fig4_f200k with mesh and time step 2x finer
+conv_f20k_n40dt,1e-6,1,osc,0.15,20000,4e-4,40,08:00:00,Convergence: fig4_f20k with time step halved only,0.5,
+conv_f20k_n80mesh,1e-6,1,osc,0.15,20000,4e-4,80,24:00:00,Convergence: fig4_f20k with mesh 2x finer only,2.0,
+conv_f20k_n40tight,1e-6,1,osc,0.15,20000,4e-4,40,24:00:00,Convergence: fig4_f20k with residuals 1e-6,,1e-6

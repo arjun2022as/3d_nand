@@ -78,24 +78,29 @@ def fig4(rows):
 
 
 def conv(rows):
-    """Mesh/time-step convergence: conv_<f>_n80 overlaid on fig4_<f> (40 cells/W)."""
-    fig, ax = plt.subplots(figsize=(6, 4.5))
+    """Convergence cases conv_<freq>_* overlaid on the matching fig4_<freq> run."""
+    fig, ax = plt.subplots(figsize=(6.5, 4.8))
+    colors = {}
     for r in rows:
-        m = re.match(r"conv_(f\w+?)_n(\d+)$", r["case"])
-        if not m:
+        if not r["case"].startswith("conv_"):
             continue
-        base, fine = history(f"fig4_{m.group(1)}"), history(r["case"])
+        freq = r["case"].split("_")[1]
+        base, fine = history(f"fig4_{freq}"), history(r["case"])
         if not (base and fine):
             continue
-        line, = ax.semilogy([t * 1e3 for t in base[0]], base[1], label=f"{m.group(1)}: 40 cells/W")
-        ax.semilogy([t * 1e3 for t in fine[0]], fine[1], "--", color=line.get_color(), label=f"{m.group(1)}: {m.group(2)} cells/W")
+        if freq not in colors:
+            line, = ax.semilogy([t * 1e3 for t in base[0]], base[1], lw=2.5,
+                                label=f"{freq}: baseline (40 cells/W)")
+            colors[freq] = line.get_color()
+        label = r["figure_note"].split(" with ")[-1]
+        ax.semilogy([t * 1e3 for t in fine[0]], fine[1], "--", label=f"{freq}: {label}")
         diff = 100 * abs(fine[1][-1] - base[1][-1]) / base[1][-1]
-        print(f"{m.group(1)}: final C/C0 40 cells/W = {base[1][-1]:.4f}, "
-              f"{m.group(2)} cells/W = {fine[1][-1]:.4f}  ({diff:.1f} % difference)")
+        print(f"{r['case']:24s} final C/C0 = {fine[1][-1]:.4f}  vs baseline {base[1][-1]:.4f}"
+              f"  ({diff:.1f} % difference)")
     ax.set(xlabel="Time (ms)", ylabel="C / C0 in cavity",
-           title="Convergence: solid = normal, dashed = 2x finer mesh and time step")
+           title="Convergence: thick = baseline, dashed = refined")
     if ax.lines:
-        ax.legend(fontsize=8)
+        ax.legend(fontsize=7)
     return fig
 
 

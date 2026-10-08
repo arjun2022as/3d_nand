@@ -78,7 +78,8 @@ bash check_runs.sh fig4     # only Fig. 4
 `conv_f20k_n80` and `conv_f200k_n80` repeat `fig4_f20k` / `fig4_f200k` with 80 instead of 40 cells across the trench; the time step halves automatically (it is set by the cell size), so both space and time are refined.
 
 ```bash
-bash submit_cases.sh conv   # 2 jobs, ~7-8 h each
+bash submit_cases.sh conv   # conv_f20k_n80, conv_f200k_n80: mesh + time step 2x finer
+bash submit_cases.sh "n40dt|n80mesh|n40tight"   # 20 kHz: time step only, mesh only, residuals 1e-6
 ```
 
 `plot_results.py` then writes `results/conv.png` (solid = normal, dashed = fine) and prints the difference in final C/C0. Under ~5 % means the 40 cells/W results are mesh-independent.

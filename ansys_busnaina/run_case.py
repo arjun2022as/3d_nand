@@ -106,6 +106,8 @@ def load_case(name):
 
 
 def plan(row, steps_per_period, min_steps, cfl):
+    cfl = float(row.get("cfl") or cfl)                 # optional per-case override in cases.csv
+    res_tol = float(row.get("res_tol") or 0) or None   # optional tighter residual criterion
     W, AR, n = float(row["W_m"]), float(row["AR"]), int(row["n_per_w"])
     u_avg, f, t_end = float(row["u_avg_m_s"]), float(row["freq_Hz"]), float(row["t_end_s"])
     h = W / n
@@ -124,7 +126,7 @@ def plan(row, steps_per_period, min_steps, cfl):
     dt = t_end / n_steps
     return dict(W=W, AR=AR, n_per_w=n, h=h, u_avg=u_avg, Us=Us, Up=Up, freq=f, St=St,
                 t_end=t_end, dt=dt, n_steps=n_steps, inlet_expr=expr,
-                Re=RHO * u_avg * W / MU, Pe_table1=W * 0.1 * u_avg / DIFF)
+                cfl=cfl, res_tol=res_tol, Re=RHO * u_avg * W / MU, Pe_table1=W * 0.1 * u_avg / DIFF)
 
 
 # ---------------------------------------------------------------- Fluent setup
@@ -260,6 +262,19 @@ def setup(solver, msh, p):
 
     tc = s.solution.run_calculation.transient_controls
     setv(tc.time_step_size, p["dt"])
+
+    if p["res_tol"]:
+        eqs = s.solution.monitor.residual.equations
+        n_set = 0
+        for name in eqs.get_object_names():
+            try:
+                setv(eqs[name].absolute_criteria, p["res_tol"])
+                n_set += 1
+                log(f"residual criterion {name}: {eqs[name].absolute_criteria()}")
+            except Exception as e:  # noqa: BLE001
+                log(f"residual criterion {name} not set: {e}")
+        if n_set == 0:
+            raise RuntimeError("res_tol requested but no residual criterion could be set")
 
 
 def report(solver, name="c_cavity"):
