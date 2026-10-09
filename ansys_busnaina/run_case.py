@@ -108,6 +108,7 @@ def load_case(name):
 def plan(row, steps_per_period, min_steps, cfl):
     cfl = float(row.get("cfl") or cfl)                 # optional per-case override in cases.csv
     res_tol = float(row.get("res_tol") or 0) or None   # optional tighter residual criterion
+    iters = int(row.get("iters") or 0) or None          # optional max iterations per time step
     W, AR, n = float(row["W_m"]), float(row["AR"]), int(row["n_per_w"])
     u_avg, f, t_end = float(row["u_avg_m_s"]), float(row["freq_Hz"]), float(row["t_end_s"])
     h = W / n
@@ -126,7 +127,7 @@ def plan(row, steps_per_period, min_steps, cfl):
     dt = t_end / n_steps
     return dict(W=W, AR=AR, n_per_w=n, h=h, u_avg=u_avg, Us=Us, Up=Up, freq=f, St=St,
                 t_end=t_end, dt=dt, n_steps=n_steps, inlet_expr=expr,
-                cfl=cfl, res_tol=res_tol, Re=RHO * u_avg * W / MU, Pe_table1=W * 0.1 * u_avg / DIFF)
+                cfl=cfl, res_tol=res_tol, iters=iters, Re=RHO * u_avg * W / MU, Pe_table1=W * 0.1 * u_avg / DIFF)
 
 
 # ---------------------------------------------------------------- Fluent setup
@@ -349,6 +350,9 @@ def main():
 
     row = load_case(a.case)
     p = plan(row, a.steps_per_period, a.min_steps, a.cfl)
+    if p["iters"]:
+        a.iters = p["iters"]
+    p["iters"] = a.iters
     log("case", a.case, json.dumps(p, indent=1))
     if a.plan_only:
         return
