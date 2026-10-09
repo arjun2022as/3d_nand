@@ -32,6 +32,6 @@ conv_f20k_n40tight,1e-6,1,osc,0.15,20000,4e-4,40,24:00:00,Convergence: fig4_f20k
 conv_f20k_n80tight,1e-6,1,osc,0.15,20000,4e-4,80,24:00:00,Mesh study: fig4_f20k 80 cells/W residuals 1e-6,2.0,1e-6
 conv_f20k_n120tight,1e-6,1,osc,0.15,20000,4e-4,120,48:00:00,Mesh study: fig4_f20k 120 cells/W residuals 1e-6,3.0,1e-6
 conv_f20k_n160tight,1e-6,1,osc,0.15,20000,4e-4,160,72:00:00,Mesh study: fig4_f20k 160 cells/W residuals 1e-6,4.0,1e-6
-conv_f20k_n40it50,1e-6,1,osc,0.15,20000,4e-4,40,72:00:00,Iteration check: 40 cells/W residuals 1e-6 and 50 iterations per step,1.0,1e-6,50
-conv_f20k_n80cfl1,1e-6,1,osc,0.15,20000,4e-4,80,120:00:00,Mesh+time study: 80 cells/W with time step refined with the mesh,1.0,1e-6,20
-conv_f20k_n120cfl1,1e-6,1,osc,0.15,20000,4e-4,120,240:00:00,Mesh+time study: 120 cells/W with time step refined with the mesh,1.0,1e-6,20
+conv_f20k_n40it50,1e-6,1,osc,0.15,20000,4e-4,40,24:00:00,Iteration check: 40 cells/W residuals 1e-6 and 50 iterations per step,1.0,1e-6,50
+conv_f20k_n80cfl1,1e-6,1,osc,0.15,20000,4e-4,80,36:00:00,Mesh+time study: 80 cells/W with time step refined with the mesh,1.0,1e-6,20
+conv_f20k_n120cfl1,1e-6,1,osc,0.15,20000,4e-4,120,72:00:00,Mesh+time study: 120 cells/W with time step refined with the mesh,1.0,1e-6,20
