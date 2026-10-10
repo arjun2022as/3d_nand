@@ -105,9 +105,11 @@ def load_case(name):
     raise SystemExit(f"case '{name}' not in cases.csv")
 
 
-def plan(row, steps_per_period, min_steps, cfl):
+def plan(row, steps_per_period, min_steps, cfl, res_tol_default=1e-6):
     cfl = float(row.get("cfl") or cfl)                 # optional per-case override in cases.csv
-    res_tol = float(row.get("res_tol") or 0) or None   # optional tighter residual criterion
+    # Residual criterion per time step. Fluent's default 1e-3 stops after ~3 iterations in these
+    # transient runs and left C/C0 ~30 % off; 1e-6 (capped at 20 iterations) is converged to <1 %.
+    res_tol = float(row.get("res_tol") or res_tol_default)
     iters = int(row.get("iters") or 0) or None          # optional max iterations per time step
     W, AR, n = float(row["W_m"]), float(row["AR"]), int(row["n_per_w"])
     u_avg, f, t_end = float(row["u_avg_m_s"]), float(row["freq_Hz"]), float(row["t_end_s"])
@@ -341,6 +343,8 @@ def main():
     ap.add_argument("--min-steps", type=int, default=2000, help="minimum time steps over t_end")
     ap.add_argument("--cfl", type=float, default=1.0, help="max convective Courant number")
     ap.add_argument("--iters", type=int, default=20, help="max iterations per time step")
+    ap.add_argument("--res-tol", type=float, default=1e-6,
+                    help="residual criterion per time step (cases.csv res_tol column overrides)")
     ap.add_argument("--log-points", type=int, default=200, help="history samples over the run")
     ap.add_argument("--snapshots", type=int, default=5, help="data files saved during the run")
     ap.add_argument("--setup-only", action="store_true", help="build the case, run 5 steps, stop")
@@ -349,7 +353,7 @@ def main():
     a = ap.parse_args()
 
     row = load_case(a.case)
-    p = plan(row, a.steps_per_period, a.min_steps, a.cfl)
+    p = plan(row, a.steps_per_period, a.min_steps, a.cfl, a.res_tol)
     if p["iters"]:
         a.iters = p["iters"]
     p["iters"] = a.iters

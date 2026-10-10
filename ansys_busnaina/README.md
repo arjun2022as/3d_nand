@@ -96,3 +96,15 @@ bash submit_cases.sh "n80tight|n120tight|n160tight"   # n40tight already done; ~
 
 `plot_results.py` writes `results/meshstudy.png` and prints the change between mesh levels, the observed
 order of convergence and the extrapolated mesh-independent C/C0.
+
+## Production settings (from the convergence study, 2026-10-09)
+
+| Setting | Value | Evidence (20 kHz, W = D = 1 um) |
+|---|---|---|
+| Residual criterion per time step | 1e-6 (default in `run_case.py`) | Fluent's 1e-3 stops after ~3 iterations/step and was ~30 % off |
+| Max iterations per time step | 20 | 20 vs 50: 0.8 % difference |
+| Courant number | 1 (time step scales with cell size) | Fixed time step with finer mesh (Courant up to 4) drifted by 43 % |
+| Cells across trench | 40 | 40 -> 80 -> 120 at Courant 1: 3.8 %, then 6.8 %; ~10 % total uncertainty |
+
+Runs made before this (fig4_* at 1e-3) must be re-run: `bash submit_cases.sh fig4 --force`.
+Fig. 2's 20 kHz cases need ~400k time steps (~6-8 days each), close to Puma's 240 h limit; run them last.
