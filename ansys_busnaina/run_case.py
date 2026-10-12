@@ -333,6 +333,51 @@ def write(solver, kind, name):
              lambda: getattr(solver.tui.file, tui)(name))
 
 
+def read_case_data(solver, name):
+    s = getattr(solver, "settings", solver)
+    first_ok(f"read {name}",
+             lambda: s.file.read_case_data(file_name=name),
+             lambda: s.file.read(file_type="case-data", file_name=name),
+             lambda: solver.tui.file.read_case_data(name))
+
+
+# ---------------------------------------------------------------- checkpoint / restart
+EXIT_CONTINUE = 99   # run_case.slurm submits a continuation job when it sees this exit code
+
+
+def parse_slurm_time(s):
+    """SLURM time ('D-HH:MM:SS', 'HH:MM:SS', 'MM:SS') -> seconds; None if not a time."""
+    s = (s or "").strip()
+    if not s or not s[0].isdigit():
+        return None
+    days, _, rest = s.partition("-") if "-" in s else ("0", "", s)
+    parts = [int(x) for x in rest.split(":")]
+    while len(parts) < 3:
+        parts.insert(0, 0)
+    h, m, sec = parts
+    return int(days) * 86400 + h * 3600 + m * 60 + sec
+
+
+def checkpoint(solver, out, state):
+    """Write case+data, then the state file; the state file is only updated once both exist."""
+    write(solver, "case-data", "checkpoint_tmp.cas.h5")
+    for ext in ("cas.h5", "dat.h5"):
+        os.replace(out / f"checkpoint_tmp.{ext}", out / f"checkpoint.{ext}")
+    (out / "checkpoint.json").write_text(json.dumps(state, indent=1))
+    log(f"checkpoint written at step {state['steps_done']}")
+
+
+def truncate_history(hist, steps_done):
+    """Drop history rows written after the checkpoint (the job may have run on before it died)."""
+    with open(hist, newline="") as f:
+        rows = list(csv.reader(f))
+    keep = [rows[0]] + [r for r in rows[1:] if r and int(r[0]) <= steps_done]
+    with open(hist, "w", newline="") as f:
+        csv.writer(f).writerows(keep)
+    if len(keep) != len(rows):
+        log(f"history.csv: dropped {len(rows) - len(keep)} rows after step {steps_done}")
+
+
 # ---------------------------------------------------------------- main
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -350,6 +395,10 @@ def main():
     ap.add_argument("--setup-only", action="store_true", help="build the case, run 5 steps, stop")
     ap.add_argument("--plan-only", action="store_true", help="print time step plan and exit")
     ap.add_argument("--force", action="store_true", help="overwrite a finished run of this case")
+    ap.add_argument("--resume", action="store_true", help="continue from results/<case>/checkpoint.*")
+    ap.add_argument("--time-left", default="", help="SLURM time left (squeue %%L), set by run_case.slurm")
+    ap.add_argument("--margin-min", type=float, default=30, help="minutes kept free before the time limit")
+    ap.add_argument("--checkpoint-hours", type=float, default=6, help="also checkpoint this often")
     a = ap.parse_args()
 
     row = load_case(a.case)
@@ -364,51 +413,113 @@ def main():
     # test runs get their own folder so they never overwrite real results
     default_dir = f"{a.case}_test" if a.setup_only else a.case
     out = Path(a.out or HERE / "results" / default_dir).resolve()
-    if (out / "summary.json").exists() and not a.force:
-        raise SystemExit(f"{out} already has a finished run (summary.json). "
-                         "Use --force to overwrite it.")
+    ckpt = out / "checkpoint.json"
+    state = None
+    if a.resume:
+        if not ckpt.exists():
+            raise SystemExit(f"--resume: no checkpoint in {out}")
+        state = json.loads(ckpt.read_text())
+    else:
+        if (out / "summary.json").exists() and not a.force:
+            raise SystemExit(f"{out} already has a finished run (summary.json). "
+                             "Use --force to overwrite it.")
+        if ckpt.exists() and not a.force:
+            raise SystemExit(f"{out} has an unfinished run (checkpoint.json). "
+                             "Use --resume to continue it or --force to start over.")
+        for old in out.glob("checkpoint*"):
+            old.unlink()
+    time_left = parse_slurm_time(a.time_left)
+    log(f"time left in this job: {a.time_left or 'unknown'}"
+        + (f" ({time_left / 3600:.1f} h)" if time_left else ""))
+
     out.mkdir(parents=True, exist_ok=True)
     msh = out / f"{a.case}.msh"
-    info = make_trench_mesh.main(["--W", str(p["W"]), "--AR", str(p["AR"]),
-                                  "--n-per-w", str(p["n_per_w"]), "-o", str(msh)])
-    p["mesh"] = info
+    if not state:
+        info = make_trench_mesh.main(["--W", str(p["W"]), "--AR", str(p["AR"]),
+                                      "--n-per-w", str(p["n_per_w"]), "-o", str(msh)])
+        p["mesh"] = info
 
     solver = launch(a.procs, out)
+    t0 = time.time()
+    end_time = t0 + time_left if time_left else None   # when SLURM will kill this job
+    exit_code = 0
     try:
-        setup(solver, msh.name, p)
-        initialize(solver)
-        write(solver, "case-data", f"{a.case}-t0.cas.h5")
+        try:
+            solver.tui.file.confirm_overwrite("no")
+        except Exception:  # noqa: BLE001
+            pass
+        hist = out / "history.csv"
+        if state:
+            done = state["steps_done"]
+            log(f"resuming from checkpoint at step {done}/{state['n_total']} (part {state['part'] + 1})")
+            read_case_data(solver, "checkpoint.cas.h5")
+            try:   # keep Fluent's own per-step report file from clobbering the earlier part
+                rf = getattr(solver, "settings", solver).solution.monitor.report_files["c_cavity_rfile"]
+                setv(rf.file_name, f"c_cavity_part{state['part'] + 1}.out")
+            except Exception as e:  # noqa: BLE001
+                log("report file name unchanged:", e)
+            truncate_history(hist, done)
+            mode = "a"
+        else:
+            setup(solver, msh.name, p)
+            initialize(solver)
+            write(solver, "case-data", f"{a.case}-t0.cas.h5")
+            done, mode = 0, "w"
 
         n_total = 5 if a.setup_only else p["n_steps"]
         chunk = max(1, n_total // a.log_points)
         snap_every = max(1, n_total // max(1, a.snapshots))
-        hist = out / "history.csv"
-        with open(hist, "w", newline="") as f:
+        next_snap = (done // snap_every + 1) * snap_every
+        next_ckpt = time.time() + a.checkpoint_hours * 3600
+        part = state["part"] + 1 if state else 1
+        wall_prev = state["wall_s"] if state else 0.0
+        steps_this_job, c = 0, None
+        with open(hist, mode, newline="") as f:
             wr = csv.writer(f)
-            wr.writerow(["step", "time_s", "c_cavity", "cleaning_efficiency"])
-            wr.writerow([0, 0.0, 1.0, 0.0])
-            done, next_snap, t0 = 0, snap_every, time.time()
+            if mode == "w":
+                wr.writerow(["step", "time_s", "c_cavity", "cleaning_efficiency"])
+                wr.writerow([0, 0.0, 1.0, 0.0])
             while done < n_total:
                 n = min(chunk, n_total - done)
+                t_chunk = time.time()
                 iterate(solver, n, a.iters)
+                t_chunk = time.time() - t_chunk
                 done += n
+                steps_this_job += n
                 c = report(solver)
                 wr.writerow([done, done * p["dt"], c, 1.0 - c])
                 f.flush()
                 if done >= next_snap and done < n_total:
                     write(solver, "data", f"{a.case}-{done:08d}.dat.h5")
                     next_snap += snap_every
-                rate = (time.time() - t0) / done
+                rate = (time.time() - t0) / steps_this_job
                 log(f"step {done}/{n_total}  t={done * p['dt']:.4e} s  C/C0={c:.6f}  "
                     f"eta={1 - c:.4f}  ETA {rate * (n_total - done) / 3600:.2f} h")
+                if done >= n_total or a.setup_only:
+                    continue
+                # stop before SLURM's time limit: leave room for one more chunk plus the margin
+                out_of_time = end_time and time.time() + 1.5 * t_chunk + a.margin_min * 60 > end_time
+                if out_of_time or time.time() > next_ckpt:
+                    checkpoint(solver, out, dict(case=a.case, steps_done=done, n_total=n_total,
+                                                 part=part, wall_s=wall_prev + time.time() - t0))
+                    next_ckpt = time.time() + a.checkpoint_hours * 3600
+                if out_of_time:
+                    log(f"time limit near: stopped at step {done}/{n_total}; a continuation job will resume")
+                    exit_code = EXIT_CONTINUE
+                    break
 
-        write(solver, "case-data", f"{a.case}-final.cas.h5")
-        p.update(c_final=c, cleaning_efficiency=1.0 - c, steps_run=done,
-                 setup_only=a.setup_only, wall_s=time.time() - t0)
-        (out / "summary.json").write_text(json.dumps(p, indent=1))
-        log("done:", json.dumps({k: p[k] for k in ("c_final", "cleaning_efficiency", "steps_run")}))
+        if exit_code == 0:
+            write(solver, "case-data", f"{a.case}-final.cas.h5")
+            p.update(c_final=c, cleaning_efficiency=1.0 - c, steps_run=done, parts=part,
+                     setup_only=a.setup_only, wall_s=wall_prev + time.time() - t0)
+            (out / "summary.json").write_text(json.dumps(p, indent=1))
+            for ck in out.glob("checkpoint*"):
+                ck.unlink()
+            log("done:", json.dumps({k: p[k] for k in ("c_final", "cleaning_efficiency", "steps_run")}))
     finally:
         solver.exit()
+    if exit_code:
+        sys.exit(exit_code)
 
 
 if __name__ == "__main__":

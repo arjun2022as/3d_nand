@@ -30,6 +30,29 @@ export PYFLUENT_FLUENT_ROOT="$AWP_ROOT241/fluent"
 source "$VENV/bin/activate"
 cd "$SLURM_SUBMIT_DIR"
 
-echo "Job $SLURM_JOB_ID on $(hostname), case $CASE, $SLURM_CPUS_PER_TASK cores"
-echo "Fluent root: $AWP_ROOT241"
-python run_case.py --case "$CASE" --procs "$SLURM_CPUS_PER_TASK" "$@"
+PART=${CHAIN_PART:-1}
+MAX_PARTS=${MAX_PARTS:-10}
+TIME_LEFT=$(squeue -h -j "$SLURM_JOB_ID" -o %L 2>/dev/null || true)
+TIME_LIMIT=$(squeue -h -j "$SLURM_JOB_ID" -o %l 2>/dev/null || true)
+
+echo "Job $SLURM_JOB_ID on $(hostname), case $CASE, $SLURM_CPUS_PER_TASK cores, part $PART"
+echo "Fluent root: $AWP_ROOT241   time left: ${TIME_LEFT:-unknown}"
+rc=0
+python run_case.py --case "$CASE" --procs "$SLURM_CPUS_PER_TASK" --time-left "$TIME_LEFT" "$@" || rc=$?
+
+# exit code 99: run_case.py checkpointed before the time limit -> submit the next part
+if [[ $rc -eq 99 ]]; then
+    if (( PART >= MAX_PARTS )); then
+        echo "ERROR: $CASE reached $MAX_PARTS parts; resume by hand: sbatch run_case.slurm $CASE --resume" >&2
+        exit 1
+    fi
+    next=(--resume)
+    for arg in "$@"; do
+        [[ "$arg" == "--force" || "$arg" == "--resume" ]] || next+=("$arg")
+    done
+    sbatch --job-name="$CASE" --time="${TIME_LIMIT:-24:00:00}" --export=ALL,CHAIN_PART=$((PART + 1)) \
+        run_case.slurm "$CASE" "${next[@]}"
+    echo "submitted part $((PART + 1)) of $CASE"
+    exit 0
+fi
+exit $rc

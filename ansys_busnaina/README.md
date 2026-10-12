@@ -108,3 +108,14 @@ order of convergence and the extrapolated mesh-independent C/C0.
 
 Runs made before this (fig4_* at 1e-3) must be re-run: `bash submit_cases.sh fig4 --force`.
 Fig. 2's 20 kHz cases need ~400k time steps (~6-8 days each), close to Puma's 240 h limit; run them last.
+
+## Long runs: automatic checkpoint and continuation
+
+Every job knows its SLURM time limit. Shortly before it (one chunk + 30 min), `run_case.py` writes
+`checkpoint.cas.h5/.dat.h5/.json` and exits with code 99; `run_case.slurm` then submits the next part
+(`--resume`, same time limit) automatically, up to `MAX_PARTS` (default 10). It also checkpoints every 6 h,
+so a crash loses at most 6 h. `check_runs.sh` shows `STOPPED` (with the resume command) for a chain that
+stopped, e.g. at `MAX_PARTS`. Finished runs delete their checkpoint files.
+
+Fig. 2's 20 kHz cases (~150-190 h) run as 72 h parts: `bash submit_cases.sh osc20k`.
+`conv_fig3_w1mm_ar5_st0.133_n80` (~70 h) checks Fig. 3's resolution at Re = 150.

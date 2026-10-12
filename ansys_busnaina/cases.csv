@@ -1,8 +1,8 @@
 case,W_m,AR,mode,u_avg_m_s,freq_Hz,t_end_s,n_per_w,walltime,figure_note,cfl,res_tol,iters
 fig2_ar1_steady,1e-3,1,steady,0.15,0,1.0,40,06:00:00,Fig 2 AR=1:1 steady flow
 fig2_ar5_steady,1e-3,5,steady,0.15,0,1.0,40,07:00:00,Fig 2 AR=5:1 steady flow
-fig2_ar1_osc20k,1e-3,1,osc,0.15,20000,1.0,40,240:00:00,Fig 2 AR=1:1 oscillating 20 kHz
-fig2_ar5_osc20k,1e-3,5,osc,0.15,20000,1.0,40,240:00:00,Fig 2 AR=5:1 oscillating 20 kHz
+fig2_ar1_osc20k,1e-3,1,osc,0.15,20000,1.0,40,72:00:00,Fig 2 AR=1:1 oscillating 20 kHz
+fig2_ar5_osc20k,1e-3,5,osc,0.15,20000,1.0,40,72:00:00,Fig 2 AR=5:1 oscillating 20 kHz
 fig4_f2k,1e-6,1,osc,0.15,2000,4e-4,40,07:00:00,Fig 4 W=D=1um St=0.0042
 fig4_f20k,1e-6,1,osc,0.15,20000,4e-4,40,07:00:00,Fig 4 W=D=1um St=0.0424
 fig4_f200k,1e-6,1,osc,0.15,200000,4e-4,40,07:00:00,Fig 4 W=D=1um St=0.4244
@@ -35,3 +35,4 @@ conv_f20k_n160tight,1e-6,1,osc,0.15,20000,4e-4,160,72:00:00,Mesh study: fig4_f20
 conv_f20k_n40it50,1e-6,1,osc,0.15,20000,4e-4,40,24:00:00,Iteration check: 40 cells/W residuals 1e-6 and 50 iterations per step,1.0,1e-6,50
 conv_f20k_n80cfl1,1e-6,1,osc,0.15,20000,4e-4,80,36:00:00,Mesh+time study: 80 cells/W with time step refined with the mesh,1.0,1e-6,20
 conv_f20k_n120cfl1,1e-6,1,osc,0.15,20000,4e-4,120,72:00:00,Mesh+time study: 120 cells/W with time step refined with the mesh,1.0,1e-6,20
+conv_fig3_w1mm_ar5_st0.133_n80,1e-3,5,osc,0.15,62.67,1.0,80,72:00:00,Mesh check: fig3_w1mm_ar5_st0.133 at 80 cells/W,1.0,1e-6,20

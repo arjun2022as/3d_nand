@@ -172,8 +172,22 @@ def meshstudy(rows):
     return fig
 
 
+def fig3_check(rows):
+    """Print conv_fig3_<case>_n<N> next to the 40 cells/W fig3 run it refines."""
+    for r in rows:
+        m = re.match(r"conv_(fig3_.+)_n(\d+)$", r["case"])
+        if not m:
+            continue
+        base, fine = history(m.group(1)), history(r["case"])
+        if base and fine:
+            eb, ef = 100 * (1 - base[1][-1]), 100 * (1 - fine[1][-1])
+            print(f"Fig. 3 mesh check {m.group(1)}: cleaning efficiency 40 cells/W = {eb:.1f} %, "
+                  f"{m.group(2)} cells/W = {ef:.1f} %  ({ef - eb:+.1f} points)")
+
+
 def main():
     rows = cases()
+    fig3_check(rows)
     for name, fn in (("fig2", fig2), ("fig3", fig3), ("fig4", fig4), ("conv", conv),
                      ("meshstudy", meshstudy)):
         fig = fn(rows)

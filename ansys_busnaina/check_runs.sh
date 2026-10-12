@@ -23,6 +23,11 @@ tail -n +2 cases.csv | while IFS=, read -r case _; do
         printf "%-26s %-10s %15s %10s %s\n" "$case" "$status" "$run/$tot" "$eff" "$note"
     elif [[ -n "$running" ]]; then
         printf "%-26s %-10s %15s %10s %s\n" "$case" "$running" "$hist_rows samples" "-" "in progress"
+    elif [[ -f "$dir/checkpoint.json" ]]; then
+        at=$(grep -o '"steps_done": [0-9]*' "$dir/checkpoint.json" | grep -o '[0-9]*$')
+        tot=$(grep -o '"n_total": [0-9]*' "$dir/checkpoint.json" | grep -o '[0-9]*$')
+        printf "%-26s %-10s %15s %10s %s\n" "$case" "STOPPED" "$at/$tot" "-" \
+            "continue: sbatch --job-name=$case run_case.slurm $case --resume"
     else
         printf "%-26s %-10s %15s %10s %s\n" "$case" "FAILED" "-" "-" "no summary.json: check logs/${case}_*.err"
     fi
