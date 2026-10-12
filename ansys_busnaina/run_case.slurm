@@ -50,7 +50,7 @@ if [[ $rc -eq 99 ]]; then
     for arg in "$@"; do
         [[ "$arg" == "--force" || "$arg" == "--resume" ]] || next+=("$arg")
     done
-    sbatch --job-name="$CASE" --time="${TIME_LIMIT:-24:00:00}" --export=ALL,CHAIN_PART=$((PART + 1)) \
+    sbatch --job-name="${SLURM_JOB_NAME:-$CASE}" --time="${TIME_LIMIT:-24:00:00}" --export=ALL,CHAIN_PART=$((PART + 1)) \
         run_case.slurm "$CASE" "${next[@]}"
     echo "submitted part $((PART + 1)) of $CASE"
     exit 0
