@@ -5,6 +5,12 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+if ! type module >/dev/null 2>&1 || [[ -z "${DISPLAY:-}" ]]; then
+    echo "ERROR: run this in an OOD Interactive Desktop terminal (needs a compute node and a display)," >&2
+    echo "       not in the login-node shell: ood.hpc.arizona.edu -> Interactive Apps -> Interactive Desktop" >&2
+    exit 1
+fi
+
 module purge
 module load "${ANSYS_MODULE:-ansys/24.1}"
 FLUENT_EXE=$(readlink -f "$(command -v fluent)")
