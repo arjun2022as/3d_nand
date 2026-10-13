@@ -134,3 +134,13 @@ Output in `results/movies/`: `<case>/frame_XX.png` (contaminant mass fraction, f
 `<case>.gif` (animation) and `montage_<pattern>.png` (rows = cases, columns = time).
 Each run saves t0 + 4-5 snapshots + final; for smoother animations rerun with more snapshots:
 `bash submit_cases.sh fig4 --force --snapshots 20`.
+
+## Fig. 4 frequency comparison (for presentations)
+
+```bash
+source ~/venvs/pyfluent241/bin/activate && python compare_fig4.py   # compute node or OOD desktop
+```
+
+Writes `results/fig4_comparison.png`: (a) C/C0 vs time, (b) contaminant left at 0.4 ms with ~10 %
+error bars (frequencies tied with the best are outlined), (c) time to remove 90 %, and (d) the final
+contaminant field per frequency if `make_movies.sh fig4` has been run. Ranking also in `fig4_comparison.csv`.
