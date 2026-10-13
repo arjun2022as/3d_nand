@@ -119,3 +119,18 @@ stopped, e.g. at `MAX_PARTS`. Finished runs delete their checkpoint files.
 
 Fig. 2's 20 kHz cases (~150-190 h) run as 72 h parts: `bash submit_cases.sh osc20k`.
 `conv_fig3_w1mm_ar5_st0.133_n80` (~70 h) checks Fig. 3's resolution at Re = 150.
+
+## Pictures and animations for presentations
+
+In an OOD **Interactive Desktop** terminal (Fluent needs a display to draw):
+
+```bash
+cd ~/3d_nand/ansys_busnaina
+bash make_movies.sh fig4                    # 5 frequencies of Fig. 4
+bash make_movies.sh 'fig3_w1mm_ar[15]_st0.133'
+```
+
+Output in `results/movies/`: `<case>/frame_XX.png` (contaminant mass fraction, fixed 0-1 scale),
+`<case>.gif` (animation) and `montage_<pattern>.png` (rows = cases, columns = time).
+Each run saves t0 + 4-5 snapshots + final; for smoother animations rerun with more snapshots:
+`bash submit_cases.sh fig4 --force --snapshots 20`.
