@@ -180,6 +180,8 @@ def main():
     ap.add_argument("--cavity-only", action="store_true", help="draw only the trench, zoomed in")
     ap.add_argument("--tag", default=None, help="output subfolder name (default from the options)")
     ap.add_argument("--procs", type=int, default=2)
+    ap.add_argument("--driver", default="null",
+                    help="Fluent graphics driver ('null' = off-screen, works without a display; '' = default)")
     a = ap.parse_args()
     if a.min is None:
         a.min = 1e-3 if a.log else 0.0
@@ -202,15 +204,38 @@ def main():
     log("cases:", cases, "->", out_dir)
 
     import ansys.fluent.core as pyfluent
-    solver = pyfluent.launch_fluent(
-        product_version=pyfluent.FluentVersion.v241,
-        dimension=pyfluent.Dimension.TWO,
-        precision=pyfluent.Precision.DOUBLE,
-        processor_count=a.procs,
-        ui_mode=pyfluent.UIMode.NO_GUI,   # no Fluent window, but graphics for pictures
-        cwd=str(RES),
-        start_timeout=900,
-    )
+
+    def launch():
+        return pyfluent.launch_fluent(
+            product_version=pyfluent.FluentVersion.v241,
+            dimension=pyfluent.Dimension.TWO,
+            precision=pyfluent.Precision.DOUBLE,
+            processor_count=a.procs,
+            ui_mode=pyfluent.UIMode.NO_GUI,   # no Fluent window, but graphics for pictures
+            # off-screen software drawing: OpenGL under the OOD/VNC desktop crashes Cortex
+            additional_arguments=f"-driver {a.driver}" if a.driver else "",
+            cwd=str(RES),
+            start_timeout=900,
+        )
+
+    def draw(solver, case, dat, png, fresh):
+        """Draw one frame and save it; return True if the picture was written.
+        fresh: this Fluent session has not loaded the case yet (first frame or after a restart)."""
+        if fresh:
+            read_case_data(solver, str(RES / case / f"{case}-t0.cas.h5"))   # also loads t0 data
+            if dat.name != f"{case}-t0.dat.h5":
+                read_data(solver, dat)
+            make_contour(solver, a)
+        else:
+            read_data(solver, dat)
+        getattr(solver, "settings", solver).results.graphics.contour["contaminant"].display()
+        if fresh:
+            fit_view(solver)
+        png.unlink(missing_ok=True)
+        save_picture(solver, png)
+        return png.exists() and png.stat().st_size > 0
+
+    solver = launch()
     case_frames = {}
     try:
         for case in cases:
@@ -220,21 +245,31 @@ def main():
                 log(f"{case}: skipped, missing {missing}")
                 continue
             (out_dir / case).mkdir(parents=True, exist_ok=True)
-            read_case_data(solver, str(RES / case / f"{case}-t0.cas.h5"))
-            contour = make_contour(solver, a)
-            pics = []
+            pics, first = [], True
             for i, (t, dat) in enumerate(frames):
-                if i:
-                    read_data(solver, dat)
-                contour.display()
-                if i == 0:
-                    fit_view(solver)
                 png = out_dir / case / f"frame_{i:02d}.png"
-                save_picture(solver, png)
+                try:
+                    ok = draw(solver, case, dat, png, first)
+                except Exception as e:  # noqa: BLE001
+                    log(f"{case} frame {i}: {type(e).__name__}: {e}")
+                    ok = False
+                if not ok:   # graphics died: restart Fluent and redo this frame from scratch
+                    log(f"{case} frame {i}: picture failed, restarting Fluent and retrying")
+                    try:
+                        solver.exit()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    solver = launch()
+                    if not draw(solver, case, dat, png, True):
+                        raise RuntimeError(f"{case} frame {i}: picture failed twice; see log above")
+                first = False
                 pics.append((t, png))
             case_frames[case] = pics
     finally:
-        solver.exit()
+        try:
+            solver.exit()
+        except Exception:  # noqa: BLE001
+            pass
     if case_frames:
         assemble(case_frames, labels, out_dir, title)
 

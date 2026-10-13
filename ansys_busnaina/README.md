@@ -122,7 +122,8 @@ Fig. 2's 20 kHz cases (~150-190 h) run as 72 h parts: `bash submit_cases.sh osc2
 
 ## Pictures and animations for presentations
 
-In an OOD **Interactive Desktop** terminal (Fluent needs a display to draw):
+On a compute node (`interactive -a krishna -t 01:00:00`, or an OOD desktop terminal). Pictures are
+drawn off-screen (`-driver null`), so no display is needed:
 
 ```bash
 cd ~/3d_nand/ansys_busnaina
