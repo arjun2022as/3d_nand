@@ -126,13 +126,16 @@ In an OOD **Interactive Desktop** terminal (Fluent needs a display to draw):
 
 ```bash
 cd ~/3d_nand/ansys_busnaina
-bash make_movies.sh fig4                    # 5 frequencies of Fig. 4
-bash make_movies.sh 'fig3_w1mm_ar[15]_st0.133'
+bash make_movies.sh fig4 --log --min 1e-3 --cavity-only   # cleaning over time: every stage visible
+bash make_movies.sh fig4 --max 0.1 --cavity-only          # residual contaminant at the end
+bash make_movies.sh fig4                                  # whole domain, 0-1 scale
 ```
 
-Output in `results/movies/`: `<case>/frame_XX.png` (contaminant mass fraction, fixed 0-1 scale),
-`<case>.gif` (animation) and `montage_<pattern>.png` (rows = cases, columns = time).
-Each run saves t0 + 4-5 snapshots + final; for smoother animations rerun with more snapshots:
+Every frame and every case uses the same colour range. Output in `results/movies/<tag>/`
+(tag from the options, e.g. `fig4_log_cavity`): `<case>/frame_XX.png`, `<case>.gif`,
+`montage.png` (rows = frequencies, columns = time) and `final_comparison.png` (all cases at the
+end, side by side). `python compare_fig4.py --frames fig4_0-0.1_cavity` uses those final fields
+in its panel (d). Each run saves t0 + 4-5 snapshots + final; for smoother animations rerun with
 `bash submit_cases.sh fig4 --force --snapshots 20`.
 
 ## Fig. 4 frequency comparison (for presentations)

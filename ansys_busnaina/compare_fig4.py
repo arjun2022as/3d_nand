@@ -56,9 +56,15 @@ def time_to(r, level):
     return None
 
 
-def last_frame(case):
-    frames = sorted((RES / "movies" / case).glob("frame_*.png"))
-    return frames[-1] if frames else None
+def last_frame(case, tag=None):
+    """Final frame of a case from results/movies/<tag>/<case>/ (newest tag if not given)."""
+    dirs = [RES / "movies" / tag / case] if tag else sorted(
+        (RES / "movies").glob(f"*/{case}"), key=lambda d: d.stat().st_mtime, reverse=True)
+    for d in dirs:
+        frames = sorted(d.glob("frame_*.png"))
+        if frames:
+            return frames[-1]
+    return None
 
 
 def label(r):
@@ -67,6 +73,11 @@ def label(r):
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--frames", default=None,
+                    help="results/movies/<tag> to take the final fields from (default: newest)")
+    a = ap.parse_args()
     runs = load()
     if not runs:
         raise SystemExit("no finished fig4_* runs found")
@@ -74,7 +85,7 @@ def main():
     # runs whose result overlaps the best one within the numerical uncertainty count as tied
     tied = [r for r in runs if r["c_end"] * (1 - UNCERTAINTY) <= best["c_end"] * (1 + UNCERTAINTY)]
     colors = plt.cm.viridis([i / max(1, len(runs) - 1) for i in range(len(runs))])
-    frames = [last_frame(r["case"]) for r in runs]
+    frames = [last_frame(r["case"], a.frames) for r in runs]
     have_frames = all(frames)
 
     # 3 panels on top; optional row of final contour images below (one per frequency)
